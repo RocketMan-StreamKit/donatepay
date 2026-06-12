@@ -1,0 +1,18 @@
+{
+  "name": "@rocketman-streamkit/addon-donatepay",
+  "version": "1.0.0",
+  "private": true,
+  "description": "StreamKit+ integration addon: donatepay",
+  "scripts": {
+    "build": "webpack --config webpack.config.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@rocketman-streamkit/types": "1.0.0",
+    "copy-webpack-plugin": "^12.0.2",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.7.2",
+    "webpack": "^5.97.1",
+    "webpack-cli": "^5.1.4"
+  }
+}

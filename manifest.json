@@ -1,0 +1,23 @@
+{
+  "name": {
+    "en": "DonatePay",
+    "ru": "DonatePay",
+    "uk": "DonatePay"
+  },
+  "description": {
+    "en": "DonatePay integration: API key auth and real-time donation alerts via Centrifugo WebSocket.",
+    "ru": "Интеграция DonatePay: авторизация по API ключу и донаты в реальном времени через Centrifugo WebSocket.",
+    "uk": "Інтеграція DonatePay: авторизація за API ключем та донати в реальному часі через Centrifugo WebSocket."
+  },
+  "type": "platform.donation",
+  "version": "1.0.0",
+  "author": "RocketMan System",
+  "icon": "logo.png",
+  "permissions": [
+    "NETWORK_REQUEST",
+    "NETWORK_WEBSOCKET",
+    "DASHBOARD_EVENTS",
+    "STATUS",
+    "NOTIFY"
+  ]
+}
