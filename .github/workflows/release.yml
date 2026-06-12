@@ -75,10 +75,33 @@ jobs:
       - name: Package addon
         if: steps.check.outputs.should_release == 'true'
         run: |
-          ADDON_ID=$(basename "$GITHUB_REPOSITORY" | sed 's/.*\///')
+          mkdir -p release-assets
+          cp manifest.json release-assets/manifest.json
+          ICON=$(node -p "require('./manifest.json').icon || ''")
+          if [ -n "$ICON" ] && [ -f "release/$ICON" ]; then
+            cp "release/$ICON" "release-assets/$ICON"
+          elif [ -n "$ICON" ] && [ -f "$ICON" ]; then
+            cp "$ICON" "release-assets/$ICON"
+          fi
           cd release
-          zip -r "../${ADDON_ID}-v${{ steps.versions.outputs.version }}.zip" .
+          zip -r ../release-assets/main.zip .
           cd ..
+
+      - name: List release files
+        if: steps.check.outputs.should_release == 'true'
+        id: files
+        run: |
+          FILES="release-assets/main.zip"$'\n'"release-assets/manifest.json"
+          ICON=$(node -p "require('./manifest.json').icon || ''")
+          if [ -n "$ICON" ] && [ -f "release-assets/$ICON" ]; then
+            FILES="${FILES}"$'\n'"release-assets/${ICON}"
+          fi
+          {
+            echo "list<<EOF"
+            echo "$FILES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "$FILES"
 
       - name: Create GitHub release
         if: steps.check.outputs.should_release == 'true'
@@ -86,5 +109,6 @@ jobs:
         with:
           tag_name: v${{ steps.versions.outputs.version }}
           name: v${{ steps.versions.outputs.version }}
-          generate_release_notes: true
-          files: ./*.zip
+          generate_release_notes: false
+          body_path: .github/release-body.md
+          files: ${{ steps.files.outputs.list }}
