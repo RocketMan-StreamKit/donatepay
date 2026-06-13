@@ -11,7 +11,7 @@
     "uk": "Інтеграція DonatePay: авторизація за API ключем та донати в реальному часі через Centrifugo WebSocket."
   },
   "type": "platform.donation",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "RocketMan System",
   "icon": "logo.png",
   "permissions": [
