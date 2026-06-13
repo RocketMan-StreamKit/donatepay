@@ -12,17 +12,7 @@ const PLATFORM_NAME = { en: 'DonatePay', ru: 'DonatePay', uk: 'DonatePay' };
  */
 export const notifyConnectionStatus = (state: ConnectionNotifyState) => {
   if (state === 'online') {
-    notify.Send({
-      id: NOTIFY_ID,
-      type: 'success',
-      title: PLATFORM_NAME,
-      message: {
-        en: 'Connected',
-        ru: 'Подключено',
-        uk: 'Підключено',
-      },
-      temp: true,
-    });
+    notify.Remove(NOTIFY_ID);
     return;
   }
 
