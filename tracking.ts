@@ -8,6 +8,18 @@ import { notifyConnectionStatus } from './status-notify';
 let starting = false;
 let centrifugoClient: DonatePayCentrifugoClient | null = null;
 
+export const reconnectDonatePayTracking = async () => {
+  starting = false;
+  stopDonatePayTracking({ notify: false });
+
+  if (!DonatePayApi.accessToken) {
+    stopDonatePayTracking();
+    return;
+  }
+
+  await startDonatePayTracking();
+};
+
 export const startDonatePayTracking = async () => {
   if (starting || !DonatePayApi.accessToken) {
     return;

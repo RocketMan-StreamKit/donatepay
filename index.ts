@@ -1,4 +1,4 @@
-import { RegenerateConfig } from './config';
+import { RegenerateConfig, syncAccessTokenFromParams } from './config';
 import { API_KEY_PAGE_URL, PLATFORM } from './constants';
 import { registerDonatePayOverlayTriggers } from './triggers';
 
@@ -19,6 +19,10 @@ status.OnClick(() => {
 
 events.On('onOpenApiKeyPage', () => {
   api.openUrl(API_KEY_PAGE_URL);
+});
+
+events.On('onParamsUpdated', () => {
+  void syncAccessTokenFromParams();
 });
 
 RegenerateConfig();
