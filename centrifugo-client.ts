@@ -5,6 +5,7 @@ import {
   type DonatePayDonationNotification,
 } from './dashboard-feed';
 import { decodeJwtPayload } from './jwt';
+import { scheduleDonatePayReconnect } from './reconnect';
 
 type WsConnection = Awaited<ReturnType<(typeof network.websocket)['connect']>>;
 
@@ -104,8 +105,9 @@ const isDonationNotification = (
   return !notification.type && Boolean(notification.vars);
 };
 
-const RECONNECT_DELAY_MS = 5000;
 const OPEN_TIMEOUT_MS = 15_000;
+
+type AuthFailureReporter = (message: string) => void;
 
 const formatError = (error: unknown) => {
   if (error instanceof Error) {
@@ -158,11 +160,12 @@ const waitForOpen = (ws: WsConnection) =>
 export class DonatePayCentrifugoClient {
   private connection: WsConnection | null = null;
   private destroyed = false;
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly userId: string;
+  private readonly onAuthFailure: AuthFailureReporter;
 
-  constructor(userId: string) {
+  constructor(userId: string, onAuthFailure: AuthFailureReporter) {
     this.userId = userId;
+    this.onAuthFailure = onAuthFailure;
   }
 
   async start() {
@@ -172,12 +175,18 @@ export class DonatePayCentrifugoClient {
 
   stop() {
     this.destroyed = true;
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
     this.destroyConnection(this.connection);
     this.connection = null;
+  }
+
+  private requestReconnect() {
+    if (this.destroyed) {
+      return;
+    }
+
+    this.destroyConnection(this.connection);
+    this.connection = null;
+    scheduleDonatePayReconnect();
   }
 
   private async connect() {
@@ -186,11 +195,18 @@ export class DonatePayCentrifugoClient {
     }
 
     try {
-      const socketToken = await DonatePayApi.getSocketToken();
-      if (!socketToken) {
-        this.scheduleReconnect();
+      const socketTokenResult = await DonatePayApi.getSocketToken();
+      if (!socketTokenResult.ok) {
+        if (socketTokenResult.authError) {
+          this.onAuthFailure(socketTokenResult.message);
+          this.stop();
+        } else {
+          this.requestReconnect();
+        }
         return;
       }
+
+      const socketToken = socketTokenResult.data;
 
       const ws = await network.websocket.connect(CENTRIFUGO_WS_URL, {});
       if (this.destroyed) {
@@ -206,7 +222,7 @@ export class DonatePayCentrifugoClient {
       });
       ws.On('close', () => {
         if (!this.destroyed && this.connection === ws) {
-          this.scheduleReconnect();
+          this.requestReconnect();
         }
       });
       ws.On('error', (error: Error) => {
@@ -221,7 +237,7 @@ export class DonatePayCentrifugoClient {
       });
     } catch (error) {
       console.error('DonatePay Centrifugo connect failed:', formatError(error));
-      this.scheduleReconnect();
+      this.requestReconnect();
     }
   }
 
@@ -241,22 +257,30 @@ export class DonatePayCentrifugoClient {
           'DonatePay Centrifugo auth failed:',
           frame.error?.message || 'missing client id'
         );
-        this.scheduleReconnect();
+        this.requestReconnect();
         return;
       }
 
       const channel = `$public:${this.userId}`;
-      const subscriptionToken = await DonatePayApi.subscribeChannel(
+      const subscriptionResult = await DonatePayApi.subscribeChannel(
         clientId,
         channel
       );
-      if (!subscriptionToken) {
-        console.error(
-          'DonatePay channel subscribe failed: missing subscription token'
-        );
-        this.scheduleReconnect();
+      if (!subscriptionResult.ok) {
+        if (subscriptionResult.authError) {
+          this.onAuthFailure(subscriptionResult.message);
+          this.stop();
+        } else {
+          console.error(
+            'DonatePay channel subscribe failed:',
+            subscriptionResult.message
+          );
+          this.requestReconnect();
+        }
         return;
       }
+
+      const subscriptionToken = subscriptionResult.data;
 
       try {
         ws.Send({
@@ -269,7 +293,7 @@ export class DonatePayCentrifugoClient {
         });
       } catch (error) {
         console.error('DonatePay channel subscribe failed:', error);
-        this.scheduleReconnect();
+        this.requestReconnect();
       }
       return;
     }
@@ -281,7 +305,7 @@ export class DonatePayCentrifugoClient {
             'DonatePay channel subscribe failed:',
             frame.error.message || 'unknown error'
           );
-          this.scheduleReconnect();
+          this.requestReconnect();
         } else {
           console.log(`[DonatePay] Subscribed to $public:${this.userId}`);
         }
@@ -295,20 +319,6 @@ export class DonatePayCentrifugoClient {
     }
 
     await pushDonation(notification);
-  }
-
-  private scheduleReconnect() {
-    if (this.destroyed || this.reconnectTimer) {
-      return;
-    }
-
-    this.destroyConnection(this.connection);
-    this.connection = null;
-
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectTimer = null;
-      void this.connect();
-    }, RECONNECT_DELAY_MS);
   }
 
   private destroyConnection(connection: WsConnection | null) {
