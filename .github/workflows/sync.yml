@@ -1,0 +1,23 @@
+name: Sync addon to RocketMan catalog
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve org/repo from manifest.json
+        id: addon
+        run: |
+          ADDON_ID=$(jq -r '.id' manifest.json)
+          echo "repo=${{ github.repository_owner }}/$ADDON_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Notify catalog about the new release
+        run: |
+          curl -sS -X POST "https://rocketman-streams.com/api/extensions/dev/sync" \
+            -H "Content-Type: application/json" \
+            -d "{\"repo\":\"${{ steps.addon.outputs.repo }}\",\"token\":\"${{ secrets.ROCKETMAN_ADDON_TOKEN }}\"}"
