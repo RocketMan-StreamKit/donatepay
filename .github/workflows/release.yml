@@ -17,6 +17,8 @@ jobs:
   release:
     name: Build and publish addon release
     runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
 
     steps:
       - name: Checkout repository
@@ -112,3 +114,10 @@ jobs:
           generate_release_notes: false
           body_path: .github/release-body.md
           files: ${{ steps.files.outputs.list }}
+
+  sync:
+    name: Sync addon to RocketMan catalog
+    needs: release
+    if: needs.release.outputs.should_release == 'true'
+    uses: ./.github/workflows/sync.yml
+    secrets: inherit
