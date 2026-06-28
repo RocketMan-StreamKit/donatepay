@@ -8,7 +8,7 @@ on:
     inputs:
       token:
         description: The token to use to sync the repository
-        required: true
+        required: false
 
 jobs:
   sync:
